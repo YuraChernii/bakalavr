@@ -43,6 +43,13 @@ model = load_model('./model.h5')
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 
+def rotate_image(image, angle):
+    (h, w) = image.shape[:2]
+    center = (w / 2, h / 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(image, M, (w, h))
+    return rotated
+
 app = Flask(__name__)
 
 @app.route('/test', methods=['GET'])
@@ -53,11 +60,18 @@ def predict():
     image_file = request.files.get('image')
     # Assuming the input data is a base64 encoded image
     image = cv2.imdecode(np.fromstring(image_file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
-    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    plt.imshow(image)
-    plt.show()
-    plt.close()
-    preprocessed_image = preprocess_image(image)
+
+    angle = 90
+    for i in range(4):
+        plt.imshow(image)
+        plt.show()
+        plt.close()
+        preprocessed_image = preprocess_image(image)
+        if (preprocessed_image is None and i < 3):
+            image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+        else:
+            break
+
     if (preprocessed_image is None):
         return []
 
@@ -101,7 +115,7 @@ def landmarks(image):
 
     with mp_facemesh.FaceMesh(
             static_image_mode=True,
-            max_num_faces=1, 
+            max_num_faces=1,
             refine_landmarks=False,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5, ) as face_mesh:
@@ -145,7 +159,6 @@ def draw(
         color=(255, 255, 255)
     )
 
-    # Draw landmarks on face using the drawing utilities.
     mp_drawing.draw_landmarks(
         image=image_drawing_tool,
         landmark_list=face_landmarks,
@@ -154,12 +167,7 @@ def draw(
         connection_drawing_spec=connections_drawing_spec,
     )
 
-    # Get the object which holds the x, y, and z coordinates for each landmark
     landmarks = face_landmarks.landmark
-
-    # Iterate over all landmarks.
-    # If the landmark_idx is present in either all_idxs or all_chosen_idxs,
-    # get the denormalized coordinates and plot circles at those coordinates.
 
     for landmark_idx, landmark in enumerate(landmarks):
         if landmark_idx in all_idxs:
