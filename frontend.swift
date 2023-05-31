@@ -53,6 +53,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         identifierLabel.heightAnchor.constraint(equalToConstant: 50).isActive = true
     }
     var frameCounter = 0
+    var wakeupCount = 0
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         frameCounter += 1
 
@@ -86,15 +87,25 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
                let innerArray = result.first,
                let value = innerArray.first {
                 if value > 0.5 {
+                    wakeupCount = 0
                     DispatchQueue.main.async {
                         self.identifierLabel.text = "Wakefulness detected. - \((value * 100).rounded() / 100)"
                     }
                 } else {
+                    wakeupCount += 1
+
+                    // Play a sound signal if "Wake up" has been triggered 10 times
+                    if wakeupCount >= 10 {
+                        let soundPlayer = SoundPlayer()
+                        soundPlayer.playSound(soundName: "sound.mp3")
+                        wakeupCount = 0 // Reset the count
+                    }
                     DispatchQueue.main.async {
                         self.identifierLabel.text = "Wake up!!! - \((value * 100).rounded() / 100)"
                     }
                 }
             } else {
+                wakeupCount = 0
                 DispatchQueue.main.async {
                     self.identifierLabel.text = "No face."
                 }
@@ -103,4 +114,22 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         
     }
 
+}
+
+class SoundPlayer {
+    var audioPlayer: AVAudioPlayer?
+
+    func playSound(soundName: String) {
+        if let path = Bundle.main.path(forResource: soundName, ofType: nil) {
+            let url = URL(fileURLWithPath: path)
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: url)
+                audioPlayer?.play()
+            } catch {
+                print("Couldn't load file")
+            }
+        } else {
+            print("Sound file not found")
+        }
+    }
 }
